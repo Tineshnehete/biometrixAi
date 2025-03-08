@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Web Client</title>
+  <style>
+    body {
+      background-color: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: #222;
+      padding: 20px;
+      border-radius: 10px;
+      display: inline-block;
+      text-align: left;
+    }
+
+    .progress-bar {
+      background: #333;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .progress {
+      background: green;
+      height: 100%;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Web Client</h1>
+  <p>Web client is running...</p>
+  <script src="./bundle.js"></script>
+  <!-- <script src="./creep.js"></script> -->
+
+  <div class="container">
+    <h2>Device Fingerprint Analysis</h2>
+    <p><strong>ID:</strong> <span id="id"></span></p>
+    <p><strong>Visitor ID:</strong> <span id="visitorID"></span></p>
+    <p><strong>Fingerprint:</strong> <span id="fingerprint"></span></p>
+    <p><strong>First Visit:</strong> <span id="firstVisit"></span></p>
+    <p><strong>Last Visit:</strong> <span id="lastVisit"></span></p>
+    <p><strong>Total Visits:</strong> <span id="visits"></span></p>
+    <p><strong>Trust Score:</strong> <span id="trustScore"></span>%</p>
+
+
+
+    <p><strong>Keyboard Pattern:</strong> <span id="keyboardStatus" class="status"></span></p>
+    <p><strong>Mouse Pattern:</strong> <span id="mouseStatus" class="status"></span></p>
+    <div class="progress-bar">
+      <div class="progress" id="progressBar"></div>
+    </div>
+  </div>
+  <script>
+    console.log(BioMatrixAI.run().then(async (res) => {
+      console.log(res)
+      const data = {
+        fp: res?.fId,
+        cpp: res?.uId,
+        blb: await BioMatrixAI.cipher(res)
+      }
+      fetch('http://127.0.0.1:8000/analize/s', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }).then(response => response.json())
+        .then(data => {
+          document.getElementById('id').textContent = data.id;
+          document.getElementById('visitorID').textContent = data.visitorID;
+          document.getElementById('fingerprint').textContent = data.fingerprint;
+          document.getElementById('firstVisit').textContent = new Date(data.first_visit).toLocaleString();
+          document.getElementById('lastVisit').textContent = new Date(data.last_visit).toLocaleString();
+          document.getElementById('visits').textContent = data.visits;
+          document.getElementById('trustScore').textContent = data.static_trust_score;
+          document.getElementById('progressBar').style.width = data.static_trust_score + '%';
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    })
+
+
+    );
+
+
+    function fetchData() {
+      fetch('http://127.0.0.1:8000/analize/out') // Replace with actual API endpoint
+        .then(response => response.json())
+        .then(data => {
+
+          document.getElementById('keyboardStatus').textContent = data.keyboard ? "Detected" : "Not Detected";
+          document.getElementById('keyboardStatus').style.color = data.keyboard ? "green" : "red";
+          document.getElementById('mouseStatus').textContent = data.mouse ? "Detected" : "Not Detected";
+          document.getElementById('mouseStatus').style.color = data.mouse ? "green" : "red";
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    }
+
+    fetchData();
+    setInterval(fetchData, 2000);
+
+
+
+    // (function () {
+    //   let keyTimes = [];
+    //   let mouseMovements = [];
+    //   let lastMouseTime = performance.now();
+    //   let lastKeyTime = performance.now();
+
+    //   function analyzeBehavior() {
+    //     let avgLatency = keyTimes.length ? keyTimes.reduce((a, b) => a + b, 0) / keyTimes.length : 0;
+    //     let avgSpeed = mouseMovements.length ? mouseMovements.reduce((a, b) => a + b, 0) / mouseMovements.length : 0;
+
+    //     if ((avgLatency < 30 || avgLatency > 500) || (avgSpeed > 2 || avgSpeed < 0.01)) {
+    //       console.warn('Potential scam activity detected based on suspicious behavior!');
+    //       document.getElementById('scam-alert').innerText = '⚠️ Suspicious Activity Detected!';
+    //     } else {
+    //       document.getElementById('scam-alert').innerText = '✅ Normal User Behavior';
+    //     }
+    //   }
+
+    //   document.addEventListener('keydown', (event) => {
+    //     let currentTime = performance.now();
+    //     let latency = currentTime - lastKeyTime;
+    //     lastKeyTime = currentTime;
+    //     keyTimes.push(latency);
+    //     if (keyTimes.length > 10) keyTimes.shift();
+    //     analyzeBehavior();
+    //   });
+
+    //   document.addEventListener('mousemove', (event) => {
+    //     let currentTime = performance.now();
+    //     let timeDiff = currentTime - lastMouseTime;
+    //     lastMouseTime = currentTime;
+    //     let speed = Math.sqrt(event.movementX ** 2 + event.movementY ** 2) / timeDiff;
+    //     mouseMovements.push(speed);
+    //     if (mouseMovements.length > 10) mouseMovements.shift();
+    //     analyzeBehavior();
+    //   });
+
+    //   document.body.innerHTML += '<div id="scam-alert" style="position: fixed; bottom: 10px; left: 10px; background: white; padding: 10px; border: 2px solid black; font-size: 28px; font-weight: bold;">Analyzing Behavior...</div>';
+    // })();
+    // console.log(CREEP.run().then((res) => console.log(res)));
+    let users = { user1: [], user2: [] };
+    let currentUser = "user1";
+    let lastKeyTime = null;
+
+    // Capture key press and release times
+    document.addEventListener("keydown", (event) => {
+      if (!lastKeyTime) {
+        lastKeyTime = performance.now();
+        return;
+      }
+
+      let currentTime = performance.now();
+      let latency = currentTime - lastKeyTime;
+      lastKeyTime = currentTime;
+
+      users[currentUser].push(latency);
+    });
+
+    // Switch users
+    document.getElementById("switchUser").addEventListener("click", () => {
+      currentUser = currentUser === "user1" ? "user2" : "user1";
+      alert(`Switched to ${currentUser}`);
+    });
+
+    // Identify user
+    document.getElementById("identifyUser").addEventListener("click", () => {
+      let testData = users[currentUser].slice(-10);
+      let user1Avg = avg(users.user1.slice(-10));
+      let user2Avg = avg(users.user2.slice(-10));
+
+      let detectedUser = Math.abs(avg(testData) - user1Avg) < Math.abs(avg(testData) - user2Avg) ? "user1" : "user2";
+      alert(`Detected User: ${detectedUser}`);
+    });
+
+    // Helper function to calculate average
+    function avg(arr) {
+      return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    }
+
+  </script>
+  <button id="switchUser">Switch User</button>
+  <button id="identifyUser">Identify User</button>
+  
+</body>
+
+</html>
